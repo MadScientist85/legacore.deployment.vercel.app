@@ -21,9 +21,22 @@ interface ConnectionTestResult {
   error?: string
 }
 
+interface DriveFileMetadata {
+  name: string
+  parents?: string[]
+}
+
+interface SpreadsheetData {
+  values: (string | number)[][]
+}
+
+interface GoogleAuthClient {
+  setCredentials: (credentials: { access_token: string }) => void
+}
+
 class GoogleIntegration {
   private config: GoogleConfig
-  private auth: any
+  private auth: GoogleAuthClient | any
 
   constructor() {
     this.config = {
@@ -150,7 +163,7 @@ class GoogleIntegration {
         throw new Error("Drive connection failed")
       }
 
-      const fileMetadata: any = {
+      const fileMetadata: DriveFileMetadata = {
         name: fileName,
       }
 
@@ -184,7 +197,7 @@ class GoogleIntegration {
     }
   }
 
-  async createSpreadsheet(title: string, data?: any[][]) {
+  async createSpreadsheet(title: string, data?: (string | number)[][]) {
     try {
       const sheetsConnection = await this.connectSheets()
       if (!sheetsConnection.success || !sheetsConnection.service) {
@@ -423,7 +436,7 @@ export async function uploadToDrive(fileName: string, fileBuffer: Buffer, mimeTy
   return googleIntegration.uploadToDrive(fileName, fileBuffer, mimeType, folderId)
 }
 
-export async function createSpreadsheet(title: string, data?: any[][]) {
+export async function createSpreadsheet(title: string, data?: (string | number)[][]) {
   return googleIntegration.createSpreadsheet(title, data)
 }
 

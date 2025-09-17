@@ -32,10 +32,20 @@ export interface Agent {
   active: boolean
   system_prompt: string
   functions: string[]
-  tools: any[]
+  tools: AgentTool[]
   examples: string[]
   created_at: string
   updated_at: string
+}
+
+export interface AgentTool {
+  name: string
+  description: string
+  parameters: {
+    type: string
+    properties: Record<string, any>
+    required: string[]
+  }
 }
 
 export interface Task {
@@ -44,8 +54,8 @@ export interface Task {
   title: string
   description: string
   status: "pending" | "in_progress" | "completed" | "failed"
-  input_data: any
-  output_data: any
+  input_data: Record<string, unknown>
+  output_data: Record<string, unknown> | null
   created_at: string
   updated_at: string
   completed_at?: string
@@ -55,10 +65,18 @@ export interface Conversation {
   id: string
   agent_id: string
   title: string
-  messages: any[]
+  messages: ChatMessage[]
   status: "active" | "archived"
   created_at: string
   updated_at: string
+}
+
+export interface ChatMessage {
+  id: string
+  role: "user" | "assistant" | "system"
+  content: string
+  timestamp: string
+  metadata?: Record<string, unknown>
 }
 
 export interface ActivityLog {
@@ -66,7 +84,7 @@ export interface ActivityLog {
   type: "conversation" | "task" | "agent" | "system"
   title: string
   description: string
-  metadata: any
+  metadata: Record<string, unknown>
   created_at: string
 }
 

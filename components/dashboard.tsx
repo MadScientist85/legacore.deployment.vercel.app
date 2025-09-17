@@ -1,16 +1,43 @@
 "use client"
 
+import React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { useDashboardData } from "@/hooks/use-dashboard-data"
+import { useSegmentTracking } from "@/hooks/use-segment-tracking"
 import { Activity, Bot, CheckCircle, Clock, MessageSquare, TrendingUp, Zap, AlertCircle, RefreshCw } from "lucide-react"
 import Link from "next/link"
 
 export function Dashboard() {
   const { data, loading, error, refreshData } = useDashboardData()
+
+  const { trackFeatureUsage, trackPageView } = useSegmentTracking()
+
+  React.useEffect(() => {
+    trackPageView({
+      page: "Dashboard",
+      title: "LEGACORE™ Command Center",
+    })
+  }, [trackPageView])
+
+  const handleRefreshData = async () => {
+    await trackFeatureUsage({
+      feature: "dashboard",
+      action: "refresh_data",
+    })
+    refreshData()
+  }
+
+  const handleQuickAction = (action: string, path: string) => {
+    trackFeatureUsage({
+      feature: "dashboard",
+      action: "quick_action",
+      metadata: { action_type: action, destination: path },
+    })
+  }
 
   if (loading) {
     return (
@@ -43,7 +70,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={refreshData} className="w-full">
+            <Button onClick={handleRefreshData} className="w-full">
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
             </Button>
@@ -65,7 +92,7 @@ export function Dashboard() {
           <h1 className="text-3xl font-bold">LEGACORE™ Command Center</h1>
           <p className="text-muted-foreground">Tactical AI Operations Dashboard</p>
         </div>
-        <Button onClick={refreshData} variant="outline" size="sm">
+        <Button onClick={handleRefreshData} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
@@ -245,25 +272,25 @@ export function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <Link href="/chat">
+            <Link href="/chat" onClick={() => handleQuickAction("start_chat", "/chat")}>
               <Button variant="outline" className="w-full justify-start bg-transparent">
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Start New Chat
               </Button>
             </Link>
-            <Link href="/agents">
+            <Link href="/agents" onClick={() => handleQuickAction("manage_agents", "/agents")}>
               <Button variant="outline" className="w-full justify-start bg-transparent">
                 <Bot className="h-4 w-4 mr-2" />
                 Manage Agents
               </Button>
             </Link>
-            <Link href="/admin">
+            <Link href="/admin" onClick={() => handleQuickAction("system_admin", "/admin")}>
               <Button variant="outline" className="w-full justify-start bg-transparent">
                 <Activity className="h-4 w-4 mr-2" />
                 System Admin
               </Button>
             </Link>
-            <Button variant="outline" className="w-full justify-start bg-transparent" onClick={refreshData}>
+            <Button variant="outline" className="w-full justify-start bg-transparent" onClick={handleRefreshData}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Data
             </Button>

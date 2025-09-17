@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { useAgents, type AgentWithStats } from "@/hooks/use-agents"
 import { Search, Bot, Settings, MessageSquare } from "lucide-react"
 import Link from "next/link"
+import { useSegmentTracking } from "@/hooks/use-segment-tracking"
 
 interface AgentHubProps {
   onSelectAgent?: (agentId: string) => void
@@ -22,6 +23,8 @@ export function AgentHub({ onSelectAgent, selectedAgentId }: AgentHubProps) {
   const { agents, loading, toggleAgentStatus } = useAgents()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
+
+  const { trackFeatureUsage, trackAgentInteraction } = useSegmentTracking()
 
   const categories = [
     { id: "all", name: "All Agents", count: agents.length },
@@ -103,6 +106,39 @@ export function AgentHub({ onSelectAgent, selectedAgentId }: AgentHubProps) {
     )
   }
 
+  const handleAgentSelect = (agentId: string) => {
+    const agent = agents.find((a) => a.id === agentId)
+    if (agent) {
+      trackAgentInteraction({
+        agentId: agent.id,
+        agentName: agent.name,
+        action: "create",
+        category: agent.category,
+      })
+    }
+    onSelectAgent?.(agentId)
+  }
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    if (query.length > 2) {
+      trackFeatureUsage({
+        feature: "agent_hub",
+        action: "search",
+        metadata: { query_length: query.length, results_count: filteredAgents.length },
+      })
+    }
+  }
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category)
+    trackFeatureUsage({
+      feature: "agent_hub",
+      action: "filter_category",
+      metadata: { category, agents_count: categories.find((c) => c.id === category)?.count || 0 },
+    })
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -123,14 +159,14 @@ export function AgentHub({ onSelectAgent, selectedAgentId }: AgentHubProps) {
           <Input
             placeholder="Search agents..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             className="pl-10"
           />
         </div>
       </div>
 
       {/* Categories */}
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
+      <Tabs value={selectedCategory} onValueChange={handleCategoryChange}>
         <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
           {categories.map((category) => (
             <TabsTrigger key={category.id} value={category.id} className="text-xs">
@@ -149,8 +185,15 @@ export function AgentHub({ onSelectAgent, selectedAgentId }: AgentHubProps) {
                 key={agent.id}
                 agent={agent}
                 isSelected={selectedAgentId === agent.id}
-                onSelect={() => onSelectAgent?.(agent.id)}
-                onToggleStatus={() => toggleAgentStatus(agent.id)}
+                onSelect={() => handleAgentSelect(agent.id)}
+                onToggleStatus={() => {
+                  toggleAgentStatus(agent.id)
+                  trackFeatureUsage({
+                    feature: "agent_hub",
+                    action: "toggle_status",
+                    metadata: { agent_id: agent.id, agent_name: agent.name, new_status: !agent.active },
+                  })
+                }}
               />
             ))}
           </div>

@@ -17,7 +17,7 @@ export interface AIResponse {
 }
 
 export interface StreamResponse {
-  stream: any
+  stream: ReadableStream<Uint8Array> | AsyncIterable<string> | any
   provider: string
   model: string
 }

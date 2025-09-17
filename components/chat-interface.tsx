@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { useSegmentTracking } from "@/hooks/use-segment-tracking"
 
 import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,6 +36,8 @@ export function ChatInterface({ agent }: ChatInterfaceProps) {
   const [loading, setLoading] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
+  const { trackChatMessage, trackAgentInteraction, trackFeatureUsage } = useSegmentTracking()
+
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
       const scrollContainer = scrollAreaRef.current.querySelector("[data-radix-scroll-area-viewport]")
@@ -51,6 +54,7 @@ export function ChatInterface({ agent }: ChatInterfaceProps) {
   const sendMessage = async () => {
     if (!input.trim() || loading) return
 
+    const startTime = Date.now()
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -61,6 +65,15 @@ export function ChatInterface({ agent }: ChatInterfaceProps) {
     setMessages((prev) => [...prev, userMessage])
     setInput("")
     setLoading(true)
+
+    if (agent) {
+      await trackAgentInteraction({
+        agentId: agent.id,
+        agentName: agent.name,
+        action: "run",
+        category: agent.category,
+      })
+    }
 
     try {
       const response = await fetch("/api/chat", {
@@ -87,6 +100,24 @@ export function ChatInterface({ agent }: ChatInterfaceProps) {
             timestamp: new Date(),
           }
           setMessages((prev) => [...prev, assistantMessage])
+
+          const responseTime = Date.now() - startTime
+          await trackChatMessage({
+            agentId: agent?.id,
+            agentName: agent?.name,
+            messageLength: userMessage.content.length,
+            responseTime,
+          })
+
+          if (agent) {
+            await trackAgentInteraction({
+              agentId: agent.id,
+              agentName: agent.name,
+              action: "complete",
+              duration: responseTime,
+              category: agent.category,
+            })
+          }
         } else {
           throw new Error(result.error || "Failed to get response")
         }
@@ -95,6 +126,17 @@ export function ChatInterface({ agent }: ChatInterfaceProps) {
       }
     } catch (error) {
       console.error("Chat error:", error)
+
+      if (agent) {
+        await trackAgentInteraction({
+          agentId: agent.id,
+          agentName: agent.name,
+          action: "error",
+          duration: Date.now() - startTime,
+          category: agent.category,
+        })
+      }
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -116,10 +158,20 @@ export function ChatInterface({ agent }: ChatInterfaceProps) {
 
   const copyMessage = (content: string) => {
     navigator.clipboard.writeText(content)
+    trackFeatureUsage({
+      feature: "chat",
+      action: "copy_message",
+      metadata: { message_length: content.length },
+    })
   }
 
   const clearChat = () => {
     setMessages([])
+    trackFeatureUsage({
+      feature: "chat",
+      action: "clear_chat",
+      metadata: { messages_cleared: messages.length },
+    })
   }
 
   return (

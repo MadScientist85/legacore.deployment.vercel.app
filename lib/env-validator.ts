@@ -7,6 +7,14 @@ export interface ProviderConfig {
   status: "active" | "fallback" | "disabled" | "error"
 }
 
+export interface SegmentConfig {
+  enabled: boolean
+  hasValidKey: boolean
+  writeKey?: string
+  keySource: "env" | "none"
+  status: "active" | "disabled" | "error"
+}
+
 export interface ValidationResult {
   providers: {
     openai: ProviderConfig
@@ -14,6 +22,7 @@ export interface ValidationResult {
     xai: ProviderConfig
     openrouter: ProviderConfig
   }
+  segment: SegmentConfig
   hasAnyProvider: boolean
   recommendedProvider: string
   errors: string[]
@@ -84,6 +93,33 @@ function getProviderConfig(
   return config
 }
 
+function getSegmentConfig(): SegmentConfig {
+  const writeKey = process.env.SEGMENT_WRITE_KEY
+  const enabled = process.env.SEGMENT_ENABLED !== "false"
+
+  const config: SegmentConfig = {
+    enabled,
+    hasValidKey: false,
+    keySource: "none",
+    status: "disabled",
+  }
+
+  if (!enabled) {
+    return config
+  }
+
+  if (writeKey && writeKey.length > 0) {
+    config.hasValidKey = true
+    config.writeKey = writeKey
+    config.keySource = "env"
+    config.status = "active"
+  } else {
+    config.status = "error"
+  }
+
+  return config
+}
+
 export function validateEnvironment(): ValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
@@ -122,6 +158,8 @@ export function validateEnvironment(): ValidationResult {
     process.env.OPENROUTER_API_KEY_FALLBACK,
   )
 
+  const segmentConfig = getSegmentConfig()
+
   const providers = {
     openai: openaiConfig,
     groq: groqConfig,
@@ -140,6 +178,10 @@ export function validateEnvironment(): ValidationResult {
     }
   })
 
+  if (segmentConfig.enabled && !segmentConfig.hasValidKey) {
+    warnings.push("Segment analytics enabled but no write key found")
+  }
+
   // Determine recommended provider
   let recommendedProvider = "mock"
   if (openaiConfig.hasValidKey) recommendedProvider = "openai"
@@ -153,6 +195,7 @@ export function validateEnvironment(): ValidationResult {
 
   return {
     providers,
+    segment: segmentConfig, // Added Segment config to return
     hasAnyProvider,
     recommendedProvider,
     errors,
@@ -168,6 +211,11 @@ export function getActiveProvider(): string {
 export function getProviderStatus(provider: keyof ValidationResult["providers"]): ProviderConfig {
   const validation = validateEnvironment()
   return validation.providers[provider]
+}
+
+export function getSegmentStatus(): SegmentConfig {
+  const validation = validateEnvironment()
+  return validation.segment
 }
 
 export default validateEnvironment
