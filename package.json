@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/google": "latest",
     "@ai-sdk/groq": "latest",
     "@ai-sdk/openai": "latest",
     "@ai-sdk/xai": "latest",
@@ -44,7 +45,7 @@
     "@radix-ui/react-toggle-group": "latest",
     "@radix-ui/react-tooltip": "latest",
     "@segment/analytics-node": "latest",
-    "@supabase/ssr": "^0.5.1",
+    "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "@vercel/blob": "latest",
     "ai": "latest",
