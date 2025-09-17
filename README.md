@@ -1,11 +1,8 @@
-# LEGACORE deployment
-
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
 [https://v0.dev/chat/projects/pfTaMvH962O](https://v0.dev/chat/projects/pfTaMvH962O)**
 
-  <img alt="Next.js 14 and App Router-ready AI chatbot with Segment analytics" src="https://raw.githubusercontent.com/vaithschmitz/segment-ai-copilot/main/public/repo_img.png">
-  <h1 align="center">Next.js AI Chatbot with Twilio Segment analytics instrumentation</h1>
+  <h1 align="center">LEGACORE PLATFORM - - BUILT TO OUTLIVE THE BUILDER-- MANIFESTING GREATNESS</h1>
 
 <p align="center">
 An open-source AI copilot with built-in Segment analytics built with Next.js, the Vercel AI SDK, OpenAI, Vercel KV and Twilio Segment.
