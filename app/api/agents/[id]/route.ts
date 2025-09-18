@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAgentById } from "@/lib/agents.config"
 import { dbOperations } from "@/lib/supabase"
-import { trackTaskOperation } from "@/lib/segment"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -19,18 +18,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     if (!agent) {
       return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 })
     }
-
-    await trackTaskOperation({
-      taskId: `agent-access-${id}`,
-      taskType: "agent_access",
-      action: "completed",
-      category: agent.category,
-      metadata: {
-        agent_id: id,
-        agent_name: agent.name,
-        access_type: "view",
-      },
-    })
 
     return NextResponse.json({
       success: true,
@@ -52,7 +39,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   try {
     const { id } = params
     const updates = await request.json()
-    const { userId } = updates
 
     // Validate updates
     const allowedUpdates = ["active", "name", "description", "systemPrompt"]
@@ -78,19 +64,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ success: false, error: "Failed to update agent in database" }, { status: 500 })
     }
 
-    await trackTaskOperation({
-      taskId: `agent-update-${id}`,
-      taskType: "agent_configuration",
-      userId,
-      action: "updated",
-      category: "system",
-      metadata: {
-        agent_id: id,
-        updated_fields: Object.keys(filteredUpdates),
-        changes: filteredUpdates,
-      },
-    })
-
     return NextResponse.json({
       success: true,
       data: updatedAgent || { id, ...filteredUpdates },
@@ -110,8 +83,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params
-    const body = await request.json().catch(() => ({}))
-    const { userId } = body
 
     // Soft delete by setting active to false
     const { data: updatedAgent, error } = (await dbOperations.updateAgent?.(id, { active: false })) || {
@@ -123,18 +94,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       console.error("Database agent delete error:", error)
       return NextResponse.json({ success: false, error: "Failed to delete agent" }, { status: 500 })
     }
-
-    await trackTaskOperation({
-      taskId: `agent-delete-${id}`,
-      taskType: "agent_management",
-      userId,
-      action: "completed",
-      category: "system",
-      metadata: {
-        agent_id: id,
-        operation: "deactivate",
-      },
-    })
 
     return NextResponse.json({
       success: true,

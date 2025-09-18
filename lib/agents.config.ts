@@ -1,0 +1,393 @@
+export interface AgentTool {
+  name: string
+  description: string
+  parameters: Record<string, any>
+  required: string[]
+}
+
+export interface AgentConfig {
+  id: string
+  name: string
+  description: string
+  category: string
+  model: string
+  version: string
+  active: boolean
+  systemPrompt: string
+  functions: string[]
+  tools: AgentTool[]
+  examples: string[]
+  created_at: string
+}
+
+export const defaultAgents: AgentConfig[] = [
+  {
+    id: "manifesting-specialist",
+    name: "Manifesting Specialist",
+    description:
+      "Expert in manifestation techniques, goal setting, and mindset transformation for achieving personal and professional success.",
+    category: "personal-development",
+    model: "gpt-4",
+    version: "1.0.0",
+    active: true,
+    systemPrompt:
+      "You are a Manifesting Specialist with deep expertise in law of attraction, visualization techniques, and goal achievement strategies. Help users transform their mindset and manifest their desired outcomes through proven methodologies. Use tools when appropriate to enhance your guidance.",
+    functions: ["goal_setting", "visualization_guidance", "mindset_coaching", "success_planning"],
+    tools: [
+      {
+        name: "create_manifestation_plan",
+        description: "Create a detailed manifestation plan with specific steps and timelines",
+        parameters: {
+          type: "object",
+          properties: {
+            goal: { type: "string", description: "The specific goal to manifest" },
+            timeframe: { type: "string", description: "Desired timeframe for manifestation" },
+            current_situation: { type: "string", description: "Current situation or starting point" },
+          },
+        },
+        required: ["goal", "timeframe"],
+      },
+      {
+        name: "generate_affirmations",
+        description: "Generate personalized affirmations for specific goals",
+        parameters: {
+          type: "object",
+          properties: {
+            goal_area: { type: "string", description: "Area of focus (career, relationships, health, etc.)" },
+            current_blocks: { type: "string", description: "Current limiting beliefs or blocks" },
+          },
+        },
+        required: ["goal_area"],
+      },
+    ],
+    examples: [
+      "How can I manifest my dream career?",
+      "What visualization techniques work best for financial goals?",
+      "Help me create a manifestation routine",
+    ],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "greatness-coach",
+    name: "Greatness Coach",
+    description:
+      "Personal excellence coach focused on unlocking human potential, building confidence, and achieving extraordinary results in all areas of life.",
+    category: "coaching",
+    model: "gpt-4",
+    version: "1.0.0",
+    active: true,
+    systemPrompt:
+      "You are a Greatness Coach dedicated to helping individuals unlock their full potential and achieve extraordinary results. Focus on building confidence, developing excellence habits, and creating breakthrough moments. Use your tools to provide structured guidance and actionable plans.",
+    functions: ["confidence_building", "habit_formation", "performance_optimization", "breakthrough_strategies"],
+    tools: [
+      {
+        name: "create_excellence_plan",
+        description: "Create a comprehensive plan for achieving excellence in a specific area",
+        parameters: {
+          type: "object",
+          properties: {
+            focus_area: { type: "string", description: "Area of focus for excellence" },
+            current_level: { type: "string", description: "Current skill or performance level" },
+            target_level: { type: "string", description: "Desired level of excellence" },
+            timeline: { type: "string", description: "Timeline for achieving excellence" },
+          },
+        },
+        required: ["focus_area", "current_level", "target_level"],
+      },
+      {
+        name: "habit_tracker_setup",
+        description: "Set up a habit tracking system for building excellence habits",
+        parameters: {
+          type: "object",
+          properties: {
+            habits: { type: "array", items: { type: "string" }, description: "List of habits to track" },
+            frequency: { type: "string", description: "How often to track (daily, weekly, etc.)" },
+          },
+        },
+        required: ["habits"],
+      },
+    ],
+    examples: [
+      "How do I build unshakeable confidence?",
+      "What habits do highly successful people have?",
+      "Help me overcome limiting beliefs",
+    ],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "surplus-funds-specialist",
+    name: "Surplus Funds Specialist",
+    description:
+      "Expert in surplus funds recovery, property research, and legal procedures for reclaiming unclaimed government funds from tax sales and foreclosures.",
+    category: "surplus-funds",
+    model: "gpt-4",
+    version: "1.0.0",
+    active: true,
+    systemPrompt:
+      "You are a Surplus Funds Recovery Specialist with extensive knowledge of tax sale procedures, property research, and legal requirements for claiming surplus funds. Provide accurate guidance on research methods, documentation, and recovery processes. Use your tools to help with property research and documentation.",
+    functions: ["property_research", "legal_documentation", "fund_calculation", "claim_filing"],
+    tools: [
+      {
+        name: "property_lookup",
+        description: "Look up property information and surplus fund potential",
+        parameters: {
+          type: "object",
+          properties: {
+            address: { type: "string", description: "Property address" },
+            county: { type: "string", description: "County where property is located" },
+            state: { type: "string", description: "State where property is located" },
+          },
+        },
+        required: ["address", "county", "state"],
+      },
+      {
+        name: "calculate_surplus",
+        description: "Calculate potential surplus funds from tax sale data",
+        parameters: {
+          type: "object",
+          properties: {
+            sale_amount: { type: "number", description: "Tax sale amount" },
+            owed_amount: { type: "number", description: "Amount owed in taxes and fees" },
+            property_value: { type: "number", description: "Assessed property value" },
+          },
+        },
+        required: ["sale_amount", "owed_amount"],
+      },
+      {
+        name: "generate_claim_documents",
+        description: "Generate required documents for surplus fund claims",
+        parameters: {
+          type: "object",
+          properties: {
+            claim_type: { type: "string", description: "Type of claim (owner, heir, lienholder)" },
+            property_info: { type: "object", description: "Property information" },
+            claimant_info: { type: "object", description: "Claimant information" },
+          },
+        },
+        required: ["claim_type", "property_info", "claimant_info"],
+      },
+    ],
+    examples: [
+      "How do I research surplus funds in my county?",
+      "What documents are needed to claim surplus funds?",
+      "Calculate potential surplus from a tax sale",
+    ],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "credit-repair-expert",
+    name: "Credit Repair Expert",
+    description:
+      "Specialized in credit analysis, dispute strategies, and credit score optimization techniques for individuals and businesses.",
+    category: "credit-repair",
+    model: "gpt-4",
+    version: "1.0.0",
+    active: true,
+    systemPrompt:
+      "You are a Credit Repair Expert with comprehensive knowledge of credit reporting, dispute processes, and score optimization strategies. Help users understand their credit reports, develop repair strategies, and improve their credit profiles. Use your tools to analyze credit reports and generate dispute letters.",
+    functions: ["credit_analysis", "dispute_letters", "score_optimization", "credit_monitoring"],
+    tools: [
+      {
+        name: "analyze_credit_report",
+        description: "Analyze credit report data and identify issues",
+        parameters: {
+          type: "object",
+          properties: {
+            credit_score: { type: "number", description: "Current credit score" },
+            negative_items: { type: "array", items: { type: "string" }, description: "List of negative items" },
+            credit_utilization: { type: "number", description: "Credit utilization percentage" },
+            payment_history: { type: "string", description: "Payment history summary" },
+          },
+        },
+        required: ["credit_score"],
+      },
+      {
+        name: "generate_dispute_letter",
+        description: "Generate a dispute letter for credit report errors",
+        parameters: {
+          type: "object",
+          properties: {
+            dispute_type: { type: "string", description: "Type of dispute (inaccurate, incomplete, unverifiable)" },
+            account_info: { type: "object", description: "Account information to dispute" },
+            reason: { type: "string", description: "Reason for dispute" },
+          },
+        },
+        required: ["dispute_type", "account_info", "reason"],
+      },
+      {
+        name: "create_credit_improvement_plan",
+        description: "Create a personalized credit improvement plan",
+        parameters: {
+          type: "object",
+          properties: {
+            current_score: { type: "number", description: "Current credit score" },
+            target_score: { type: "number", description: "Target credit score" },
+            timeline: { type: "string", description: "Desired timeline for improvement" },
+            major_issues: { type: "array", items: { type: "string" }, description: "Major credit issues to address" },
+          },
+        },
+        required: ["current_score", "target_score"],
+      },
+    ],
+    examples: [
+      "How do I dispute incorrect items on my credit report?",
+      "What's the fastest way to improve my credit score?",
+      "Help me understand my credit report",
+    ],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "debt-collection-advisor",
+    name: "Debt Collection Advisor",
+    description:
+      "Expert in debt collection strategies, legal compliance, and negotiation techniques for businesses and collection agencies.",
+    category: "debt-collection",
+    model: "gpt-4",
+    version: "1.0.0",
+    active: true,
+    systemPrompt:
+      "You are a Debt Collection Advisor with expertise in collection strategies, FDCPA compliance, and negotiation techniques. Provide guidance on ethical collection practices, legal requirements, and effective recovery methods. Use your tools to help with collection strategies and compliance checks.",
+    functions: ["collection_strategies", "legal_compliance", "negotiation_tactics", "documentation"],
+    tools: [
+      {
+        name: "create_collection_strategy",
+        description: "Create a collection strategy for specific debt situations",
+        parameters: {
+          type: "object",
+          properties: {
+            debt_amount: { type: "number", description: "Amount of debt owed" },
+            debt_age: { type: "string", description: "How old the debt is" },
+            debtor_situation: { type: "string", description: "Debtor's financial situation" },
+            previous_attempts: {
+              type: "array",
+              items: { type: "string" },
+              description: "Previous collection attempts",
+            },
+          },
+        },
+        required: ["debt_amount", "debt_age"],
+      },
+      {
+        name: "compliance_check",
+        description: "Check collection practices for FDCPA compliance",
+        parameters: {
+          type: "object",
+          properties: {
+            collection_method: { type: "string", description: "Collection method to check" },
+            communication_type: { type: "string", description: "Type of communication (phone, letter, email)" },
+            timing: { type: "string", description: "When communication occurred" },
+          },
+        },
+        required: ["collection_method"],
+      },
+      {
+        name: "generate_collection_letter",
+        description: "Generate compliant collection letters",
+        parameters: {
+          type: "object",
+          properties: {
+            letter_type: { type: "string", description: "Type of collection letter (initial, follow-up, final)" },
+            debt_info: { type: "object", description: "Debt information" },
+            debtor_info: { type: "object", description: "Debtor information" },
+          },
+        },
+        required: ["letter_type", "debt_info"],
+      },
+    ],
+    examples: [
+      "What are the legal requirements for debt collection?",
+      "How do I negotiate payment plans effectively?",
+      "Create a collection strategy for overdue accounts",
+    ],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "government-contracts-specialist",
+    name: "Government Contracts Specialist",
+    description:
+      "Expert in government contracting, proposal writing, and compliance requirements for federal, state, and local contracts.",
+    category: "government-contracts",
+    model: "gpt-4",
+    version: "1.0.0",
+    active: true,
+    systemPrompt:
+      "You are a Government Contracts Specialist with deep knowledge of procurement processes, proposal writing, and compliance requirements. Help users navigate the complex world of government contracting and win contracts. Use your tools to help with proposal writing and contract research.",
+    functions: ["proposal_writing", "compliance_guidance", "bid_strategies", "contract_management"],
+    tools: [
+      {
+        name: "search_contracts",
+        description: "Search for relevant government contracts and opportunities",
+        parameters: {
+          type: "object",
+          properties: {
+            keywords: { type: "array", items: { type: "string" }, description: "Keywords to search for" },
+            agency: { type: "string", description: "Specific government agency" },
+            contract_value: { type: "string", description: "Contract value range" },
+            location: { type: "string", description: "Geographic location" },
+          },
+        },
+        required: ["keywords"],
+      },
+      {
+        name: "analyze_rfp",
+        description: "Analyze RFP requirements and create response strategy",
+        parameters: {
+          type: "object",
+          properties: {
+            rfp_text: { type: "string", description: "RFP text or key requirements" },
+            company_capabilities: { type: "array", items: { type: "string" }, description: "Company capabilities" },
+            budget_range: { type: "string", description: "Available budget range" },
+          },
+        },
+        required: ["rfp_text"],
+      },
+      {
+        name: "generate_proposal_outline",
+        description: "Generate a proposal outline based on RFP requirements",
+        parameters: {
+          type: "object",
+          properties: {
+            rfp_requirements: { type: "array", items: { type: "string" }, description: "Key RFP requirements" },
+            proposal_type: { type: "string", description: "Type of proposal (technical, cost, combined)" },
+            page_limit: { type: "number", description: "Page limit for proposal" },
+          },
+        },
+        required: ["rfp_requirements", "proposal_type"],
+      },
+    ],
+    examples: [
+      "How do I write a winning government proposal?",
+      "What are the key compliance requirements?",
+      "Help me find relevant government contracts",
+    ],
+    created_at: new Date().toISOString(),
+  },
+]
+
+export const getAgentById = (id: string): AgentConfig | null => {
+  return defaultAgents.find((agent) => agent.id === id) || null
+}
+
+export const getAgentsByCategory = (category: string): AgentConfig[] => {
+  return defaultAgents.filter((agent) => agent.category === category && agent.active)
+}
+
+export const getAllActiveAgents = (): AgentConfig[] => {
+  return defaultAgents.filter((agent) => agent.active)
+}
+
+export const getAgentCategories = (): string[] => {
+  return Array.from(new Set(defaultAgents.map((agent) => agent.category)))
+}
+
+export const getAgentTools = (agentId: string): AgentTool[] => {
+  const agent = getAgentById(agentId)
+  return agent?.tools || []
+}
+
+export const hasAgentTool = (agentId: string, toolName: string): boolean => {
+  const agent = getAgentById(agentId)
+  return agent?.tools.some((tool) => tool.name === toolName) || false
+}
+
+export default defaultAgents

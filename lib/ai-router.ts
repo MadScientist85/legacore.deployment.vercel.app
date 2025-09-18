@@ -3,7 +3,7 @@ import { openai } from "@ai-sdk/openai"
 import { xai } from "@ai-sdk/xai"
 import { createGroq } from "@ai-sdk/groq"
 import { generateText, streamText } from "ai"
-import { validateEnvironment, type ValidationResult, type ProviderConfig } from "./env-validator"
+import { validateEnvironment, type ValidationResult } from "./env-validator"
 
 export interface AIResponse {
   text: string
@@ -17,34 +17,17 @@ export interface AIResponse {
 }
 
 export interface StreamResponse {
-  stream: ReadableStream<Uint8Array> | AsyncIterable<string> | any
+  stream: any
   provider: string
   model: string
-}
-
-export interface AIRouterConfig {
-  preferredProvider?: "openai" | "openrouter" | "auto"
-  loadBalancing?: boolean
-  maxRetries?: number
-  timeoutMs?: number
 }
 
 class AIRouter {
   private validation: ValidationResult
   private openrouterClient: OpenAI | null = null
-  private config: AIRouterConfig
-  private requestCounts: Map<string, number> = new Map()
-  private lastUsedProvider: string | null = null
 
-  constructor(config: AIRouterConfig = {}) {
+  constructor() {
     this.validation = validateEnvironment()
-    this.config = {
-      preferredProvider: "auto",
-      loadBalancing: true,
-      maxRetries: 3,
-      timeoutMs: 30000,
-      ...config,
-    }
     this.initializeOpenRouter()
   }
 
@@ -94,123 +77,67 @@ class AIRouter {
     )
   }
 
-  private getProviderOrder(): Array<{ name: string; config: ProviderConfig }> {
-    const { openai, openrouter, groq, xai } = this.validation.providers
-
-    if (this.config.preferredProvider === "openai" && openai.hasValidKey) {
-      return [
-        { name: "openai", config: openai },
-        { name: "openrouter", config: openrouter },
-        { name: "groq", config: groq },
-        { name: "xai", config: xai },
-      ]
-    }
-
-    if (this.config.preferredProvider === "openrouter" && openrouter.hasValidKey) {
-      return [
-        { name: "openrouter", config: openrouter },
-        { name: "openai", config: openai },
-        { name: "groq", config: groq },
-        { name: "xai", config: xai },
-      ]
-    }
-
+  async generateResponse(prompt: string, systemPrompt?: string): Promise<AIResponse> {
     const providers = [
-      { name: "openai", config: openai, priority: 1 },
-      { name: "openrouter", config: openrouter, priority: 2 },
-      { name: "groq", config: groq, priority: 3 },
-      { name: "xai", config: xai, priority: 4 },
+      { name: "openai", config: this.validation.providers.openai },
+      { name: "groq", config: this.validation.providers.groq },
+      { name: "xai", config: this.validation.providers.xai },
+      { name: "openrouter", config: this.validation.providers.openrouter },
     ]
 
-    if (this.config.loadBalancing && openai.hasValidKey && openrouter.hasValidKey) {
-      const openaiCount = this.requestCounts.get("openai") || 0
-      const openrouterCount = this.requestCounts.get("openrouter") || 0
+    // Try providers in order of preference
+    for (const { name, config } of providers) {
+      if (!config.hasValidKey) continue
 
-      if (openaiCount <= openrouterCount) {
-        providers[0].priority = 1
-        providers[1].priority = 2
-      } else {
-        providers[0].priority = 2
-        providers[1].priority = 1
-      }
-    }
-
-    return providers
-      .filter((p) => p.config.hasValidKey)
-      .sort((a, b) => a.priority - b.priority)
-      .map(({ name, config }) => ({ name, config }))
-  }
-
-  async generateResponse(prompt: string, systemPrompt?: string): Promise<AIResponse> {
-    const providers = this.getProviderOrder()
-    let lastError: Error | null = null
-
-    for (let attempt = 0; attempt < this.config.maxRetries!; attempt++) {
-      for (const { name, config } of providers) {
-        if (!config.hasValidKey) continue
-
-        try {
-          console.log(`[v0] Attempting ${name} provider (attempt ${attempt + 1})`)
-
-          const response = await Promise.race([
-            this.executeProvider(name, prompt, systemPrompt),
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), this.config.timeoutMs)),
-          ])
-
-          this.incrementRequestCount(name)
-          this.lastUsedProvider = name
-
-          console.log(`[v0] Successfully used ${name} provider`)
-          return response
-        } catch (error) {
-          lastError = error as Error
-          console.warn(`[v0] ${name} provider failed (attempt ${attempt + 1}):`, error)
-          continue
+      try {
+        switch (name) {
+          case "openai":
+            return await this.generateWithOpenAI(prompt, systemPrompt)
+          case "groq":
+            return await this.generateWithGroq(prompt, systemPrompt)
+          case "xai":
+            return await this.generateWithXAI(prompt, systemPrompt)
+          case "openrouter":
+            return await this.generateWithOpenRouter(prompt, systemPrompt)
         }
+      } catch (error) {
+        console.warn(`${name} provider failed:`, error)
+        continue
       }
     }
 
+    // Fallback to mock response
     return {
-      text: `AI services are currently unavailable. Tried ${providers.length} providers with ${this.config.maxRetries} retries each. Last error: ${lastError?.message || "Unknown error"}`,
-      provider: "fallback",
-      model: "error",
+      text: "AI services are currently unavailable. Please check your API configuration or try again later.",
+      provider: "mock",
+      model: "fallback",
     }
-  }
-
-  private async executeProvider(name: string, prompt: string, systemPrompt?: string): Promise<AIResponse> {
-    switch (name) {
-      case "openai":
-        return await this.generateWithOpenAI(prompt, systemPrompt)
-      case "groq":
-        return await this.generateWithGroq(prompt, systemPrompt)
-      case "xai":
-        return await this.generateWithXAI(prompt, systemPrompt)
-      case "openrouter":
-        return await this.generateWithOpenRouter(prompt, systemPrompt)
-      default:
-        throw new Error(`Unknown provider: ${name}`)
-    }
-  }
-
-  private incrementRequestCount(provider: string) {
-    const current = this.requestCounts.get(provider) || 0
-    this.requestCounts.set(provider, current + 1)
   }
 
   async streamResponse(prompt: string, systemPrompt?: string): Promise<StreamResponse> {
-    const providers = this.getProviderOrder()
+    const providers = [
+      { name: "openai", config: this.validation.providers.openai },
+      { name: "groq", config: this.validation.providers.groq },
+      { name: "xai", config: this.validation.providers.xai },
+      { name: "openrouter", config: this.validation.providers.openrouter },
+    ]
 
     for (const { name, config } of providers) {
       if (!config.hasValidKey) continue
 
       try {
-        console.log(`[v0] Streaming with ${name} provider`)
-        const response = await this.executeStreamProvider(name, prompt, systemPrompt)
-        this.incrementRequestCount(name)
-        this.lastUsedProvider = name
-        return response
+        switch (name) {
+          case "openai":
+            return await this.streamWithOpenAI(prompt, systemPrompt)
+          case "groq":
+            return await this.streamWithGroq(prompt, systemPrompt)
+          case "xai":
+            return await this.streamWithXAI(prompt, systemPrompt)
+          case "openrouter":
+            return await this.streamWithOpenRouter(prompt, systemPrompt)
+        }
       } catch (error) {
-        console.warn(`[v0] ${name} streaming failed:`, error)
+        console.warn(`${name} streaming failed:`, error)
         continue
       }
     }
@@ -218,36 +145,17 @@ class AIRouter {
     throw new Error("No AI providers available for streaming")
   }
 
-  private async executeStreamProvider(name: string, prompt: string, systemPrompt?: string): Promise<StreamResponse> {
-    switch (name) {
-      case "openai":
-        return await this.streamWithOpenAI(prompt, systemPrompt)
-      case "groq":
-        return await this.streamWithGroq(prompt, systemPrompt)
-      case "xai":
-        return await this.streamWithXAI(prompt, systemPrompt)
-      case "openrouter":
-        return await this.streamWithOpenRouter(prompt, systemPrompt)
-      default:
-        throw new Error(`Unknown provider: ${name}`)
-    }
-  }
-
   private async generateWithOpenAI(prompt: string, systemPrompt?: string): Promise<AIResponse> {
-    const model = process.env.OPENAI_MODEL || "gpt-4o"
-
     const result = await generateText({
-      model: openai(model),
+      model: openai("gpt-4"),
       prompt,
       system: systemPrompt,
-      maxTokens: 4000,
-      temperature: 0.7,
     })
 
     return {
       text: result.text,
       provider: "openai",
-      model,
+      model: "gpt-4",
       usage: result.usage,
     }
   }
@@ -291,22 +199,20 @@ class AIRouter {
       throw new Error("OpenRouter client not initialized")
     }
 
-    const model = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct"
-
     const response = await this.openrouterClient.chat.completions.create({
-      model,
+      model: "meta-llama/llama-3.3-70b-instruct",
       messages: [
         ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
         { role: "user" as const, content: prompt },
       ],
-      max_tokens: 4000,
+      max_tokens: 2000,
       temperature: 0.7,
     })
 
     return {
       text: response.choices[0]?.message?.content || "No response generated",
       provider: "openrouter",
-      model,
+      model: "meta-llama/llama-3.3-70b-instruct",
       usage: response.usage
         ? {
             promptTokens: response.usage.prompt_tokens,
@@ -318,20 +224,16 @@ class AIRouter {
   }
 
   private async streamWithOpenAI(prompt: string, systemPrompt?: string): Promise<StreamResponse> {
-    const model = process.env.OPENAI_MODEL || "gpt-4o"
-
     const result = await streamText({
-      model: openai(model),
+      model: openai("gpt-4"),
       prompt,
       system: systemPrompt,
-      maxTokens: 4000,
-      temperature: 0.7,
     })
 
     return {
       stream: result.textStream,
       provider: "openai",
-      model,
+      model: "gpt-4",
     }
   }
 
@@ -372,15 +274,13 @@ class AIRouter {
       throw new Error("OpenRouter client not initialized")
     }
 
-    const model = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct"
-
     const stream = await this.openrouterClient.chat.completions.create({
-      model,
+      model: "meta-llama/llama-3.3-70b-instruct",
       messages: [
         ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
         { role: "user" as const, content: prompt },
       ],
-      max_tokens: 4000,
+      max_tokens: 2000,
       temperature: 0.7,
       stream: true,
     })
@@ -388,7 +288,7 @@ class AIRouter {
     return {
       stream,
       provider: "openrouter",
-      model,
+      model: "meta-llama/llama-3.3-70b-instruct",
     }
   }
 
@@ -397,9 +297,6 @@ class AIRouter {
       validation: this.validation,
       hasAnyProvider: this.validation.hasAnyProvider,
       recommendedProvider: this.validation.recommendedProvider,
-      config: this.config,
-      lastUsedProvider: this.lastUsedProvider,
-      requestCounts: Object.fromEntries(this.requestCounts),
       activeProviders: Object.entries(this.validation.providers)
         .filter(([_, config]) => config.hasValidKey)
         .map(([name, config]) => ({
@@ -407,22 +304,15 @@ class AIRouter {
           status: config.status,
           model: config.model,
           keySource: config.keySource,
-          requestCount: this.requestCounts.get(name) || 0,
         })),
     }
   }
 
-  updateConfig(newConfig: Partial<AIRouterConfig>) {
-    this.config = { ...this.config, ...newConfig }
-  }
-
-  resetRequestCounts() {
-    this.requestCounts.clear()
+  refreshValidation() {
+    this.validation = validateEnvironment()
+    this.initializeOpenRouter()
   }
 }
 
 export const aiRouter = new AIRouter()
-export const openaiFirstRouter = new AIRouter({ preferredProvider: "openai" })
-export const openrouterFirstRouter = new AIRouter({ preferredProvider: "openrouter" })
-
 export default aiRouter
